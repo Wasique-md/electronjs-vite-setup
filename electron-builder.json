@@ -1,7 +1,7 @@
 {
   "appId": "com.n-ziermann.electron-setup",
   "files": ["dist-electron", "dist-react"],
-  "icon": "./desktopIcon.png",
+  "icon": "./src/desktopIcon.png",
   "mac": {
     "target": "dmg"
   },
