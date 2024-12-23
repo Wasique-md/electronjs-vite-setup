@@ -261,6 +261,7 @@ export default function ServerLogs() {
                     <input
                       type="text"
                       id="server-name"
+                      placeholder="Enter Server Name"
                       value={newServerName}
                       onChange={(e) => setNewServerName(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
