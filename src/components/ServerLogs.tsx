@@ -271,7 +271,7 @@ export default function ServerLogs() {
                       htmlFor="add-server"
                       className="block text-sm font-medium text-gray-700 mb-1"
                     >
-                      Server Directory:
+                      Server Path:
                     </label>
                     <div className="flex items-center">
                       <input
