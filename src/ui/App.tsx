@@ -1,10 +1,10 @@
 import React from "react";
-import LandingWindow from "../components/LandingWindow";
+import ServerLogs from "../components/ServerLogs";
 
 function App() {
   return (
     <div>
-      <LandingWindow />
+      <ServerLogs />
     </div>
   );
 }

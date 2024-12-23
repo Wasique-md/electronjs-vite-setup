@@ -23,7 +23,7 @@ interface ServerType {
   id: string;
 }
 
-export default function LandingWindow() {
+export default function ServerLogs() {
   const [servers] = useState<ServerType[]>([
     { name: "Production Server", id: "prod" },
     { name: "Development Server", id: "dev" },
@@ -76,23 +76,6 @@ export default function LandingWindow() {
   return (
     <div className="flex h-screen w-full flex-col bg-background text-foreground">
       <div className="container mx-auto min-w-[100vw] px-4 flex flex-col h-full">
-        {/* Top Bar */}
-        {/* <div className="border-b">
-          <div className="flex items-center gap-4 px-4 py-2">
-            <div className="flex items-center gap-2">
-              <span className="text-lg font-semibold">ServerLogs</span>
-            </div>
-            <nav className="flex gap-4 text-sm text-muted-foreground">
-              <button className="hover:text-foreground">File</button>
-              <button className="hover:text-foreground">Filter</button>
-              <button className="hover:text-foreground">Tools</button>
-              <button className="hover:text-foreground">Report</button>
-              <button className="hover:text-foreground">View</button>
-            </nav>
-          </div>
-        </div> */}
-
-        {/* Header */}
         <div className="border-b py-3 text-center">
           <h1 className="text-2xl font-semibold">Server Log Viewer</h1>
         </div>
