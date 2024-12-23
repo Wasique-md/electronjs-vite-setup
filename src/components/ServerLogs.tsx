@@ -1,31 +1,25 @@
-import React, { useState, ChangeEvent, useEffect } from "react";
+"use client";
+import React from "react";
+import { useState, ChangeEvent } from "react";
 import {
-  Search,
-  Settings,
-  RefreshCw,
-  Download,
   ChevronRight,
   Server,
-  Info,
-  AlertCircle,
-  AlertTriangle,
-  Sparkles,
-  X,
   File,
+  X,
+  Search,
+  Settings,
+  RotateCcw,
+  Download,
 } from "lucide-react";
-
-declare module "react" {
-  interface InputHTMLAttributes<T> extends HTMLAttributes<T> {
-    directory?: string;
-    webkitdirectory?: string;
-  }
-}
-
-interface LogEntry {
-  type: "INFO" | "ERROR" | "WARNING" | "DEBUG" | "FILE";
-  timestamp: string;
-  message: string;
-}
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
 
 interface ServerType {
   name: string;
@@ -33,16 +27,23 @@ interface ServerType {
   path: string;
 }
 
-export default function ServerLogs() {
+interface FileEntry {
+  name: string;
+  path: string;
+  timestamp: string;
+}
+
+export default function ServerLogsViewer() {
   const [servers, setServers] = useState<ServerType[]>([]);
-  const [openServerModel, setOpenServerModel] = useState<boolean>(false);
+  const [openServerModal, setOpenServerModal] = useState<boolean>(false);
   const [newServerName, setNewServerName] = useState<string>("");
   const [newServerPath, setNewServerPath] = useState<string>("");
   const [selectedServer, setSelectedServer] = useState<ServerType | null>(null);
-  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [files, setFiles] = useState<FileEntry[]>([]);
+  const [searchQuery, setSearchQuery] = useState<string>("");
 
-  const handleOpenAddServerModel = () => {
-    setOpenServerModel(!openServerModel);
+  const handleOpenAddServerModal = () => {
+    setOpenServerModal(!openServerModal);
   };
 
   const handleAddServer = () => {
@@ -55,76 +56,85 @@ export default function ServerLogs() {
       setServers([...servers, newServer]);
       setNewServerName("");
       setNewServerPath("");
-      setOpenServerModel(false);
+      setOpenServerModal(false);
       setSelectedServer(newServer);
     }
   };
 
   const handleSelectServer = (server: ServerType) => {
     setSelectedServer(server);
+    const simulatedFiles = [
+      {
+        name: "config.json",
+        path: `${server.path}/config.json`,
+        timestamp: "2024-12-23T11:39:53.824Z",
+      },
+      {
+        name: "app.log",
+        path: `${server.path}/app.log`,
+        timestamp: "2024-12-23T11:39:53.824Z",
+      },
+      {
+        name: "data.db",
+        path: `${server.path}/data.db`,
+        timestamp: "2024-12-23T11:39:53.824Z",
+      },
+      {
+        name: "index.html",
+        path: `${server.path}/index.html`,
+        timestamp: "2024-12-23T11:39:53.824Z",
+      },
+      {
+        name: "styles.css",
+        path: `${server.path}/styles.css`,
+        timestamp: "2024-12-23T11:39:53.824Z",
+      },
+      {
+        name: "script.js",
+        path: `${server.path}/script.js`,
+        timestamp: "2024-12-23T11:39:53.824Z",
+      },
+    ];
+    setFiles(simulatedFiles);
   };
 
-  useEffect(() => {
-    if (selectedServer) {
-      // In a real Electron app, you would use the fs module to read the directory
-      // For this example, we'll simulate reading files
-      const simulateReadDir = () => {
-        const files = [
-          "config.json",
-          "app.log",
-          "data.db",
-          "index.html",
-          "styles.css",
-          "script.js",
-        ];
-        const newLogs: LogEntry[] = files.map((file) => ({
-          type: "FILE",
-          timestamp: new Date().toISOString(),
-          message: `File: ${file}`,
-        }));
-        setLogs(newLogs);
-      };
-
-      simulateReadDir();
+  const handleDirectorySelect = (e: ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files) {
+      const fileList: FileEntry[] = Array.from(files).map((file) => ({
+        name: file.name,
+        path: file.webkitRelativePath,
+        timestamp: new Date().toISOString(),
+      }));
+      setFiles(fileList);
     }
-  }, [selectedServer]);
+  };
+
+  const filteredFiles = files.filter((file) =>
+    file.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
-    <div className="flex h-screen w-full flex-col bg-background text-foreground">
-      <div className="container mx-auto min-w-[100vw] px-4 flex flex-col h-full">
-        <div className="border-b py-3 text-center">
-          <h1 className="text-2xl font-semibold">Server Log Viewer</h1>
-        </div>
+    <div className="flex h-screen w-full flex-col bg-background">
+      <div className="border-b py-3 px-4">
+        <h1 className="text-2xl font-semibold text-center">
+          Server Log Viewer
+        </h1>
+      </div>
 
-        {/* Search Bar */}
-        <div className="flex items-center justify-center gap-2 border-b py-4">
-          <div className="flex flex-1 items-center gap-2 rounded-md border bg-background px-3 py-2">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Search logs..."
-              className="flex-1 bg-transparent outline-none"
-            />
-          </div>
-          <button className="rounded-md p-2 hover:bg-accent">
-            <RefreshCw className="h-5 w-5" />
-          </button>
-          <button className="rounded-md p-2 hover:bg-accent">
-            <Settings className="h-5 w-5" />
-          </button>
-        </div>
-
-        <div className="flex flex-1 overflow-hidden">
-          {/* Sidebar */}
-          <div className="w-64 border-r p-4">
+      <div className="flex-1 flex">
+        <div className="w-64 border-r flex flex-col">
+          <div className="p-4 border-b">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold">SERVERS</h2>
-              <button
-                className="bg-blue-600 text-white px-2 py-1 rounded-md text-sm hover:bg-blue-700"
-                onClick={handleOpenAddServerModel}
+              <Button
+                variant="default"
+                size="sm"
+                onClick={handleOpenAddServerModal}
+                className="h-8 bg-blue-600 hover:to-blue-800"
               >
                 + Add Server
-              </button>
+              </Button>
             </div>
             <div className="space-y-1">
               {servers.map((server) => (
@@ -142,194 +152,166 @@ export default function ServerLogs() {
               ))}
             </div>
           </div>
-
-          {/* Main Content */}
-          <div className="flex flex-1 flex-col overflow-hidden">
-            {/* Toolbar */}
-            <div className="flex items-center justify-between border-b p-4 gap-4">
-              <div className="flex gap-2">
-                <select className="rounded-md border bg-background px-3 py-1 text-sm">
-                  <option>Last 15 minutes</option>
-                  <option>Last hour</option>
-                  <option>Last 24 hours</option>
-                </select>
-                <select className="rounded-md border bg-background px-3 py-1 text-sm">
-                  <option>All levels</option>
-                  <option>Info</option>
-                  <option>Warning</option>
-                  <option>Error</option>
-                  <option>Debug</option>
-                </select>
-              </div>
-              <button className="flex items-center gap-2 rounded-md bg-blue-600 px-4 py-1.5 text-sm text-white hover:bg-blue-700">
-                <Download className="h-4 w-4" />
-                Download Logs
-              </button>
-            </div>
-
-            {/* Logs */}
-            <div className="flex-1 overflow-auto p-4">
-              <div className="space-y-2">
-                {logs.map((log, index) => {
-                  const getIcon = () => {
-                    switch (log.type) {
-                      case "INFO":
-                        return <Info className="h-4 w-4 text-blue-500" />;
-                      case "ERROR":
-                        return <AlertCircle className="h-4 w-4 text-red-500" />;
-                      case "WARNING":
-                        return (
-                          <AlertTriangle className="h-4 w-4 text-yellow-500" />
-                        );
-                      case "DEBUG":
-                        return <Sparkles className="h-4 w-4 text-purple-500" />;
-                      case "FILE":
-                        return <File className="h-4 w-4 text-gray-500" />;
-                    }
-                  };
-
-                  const getBackground = () => {
-                    switch (log.type) {
-                      case "INFO":
-                        return "bg-blue-50";
-                      case "ERROR":
-                        return "bg-red-50";
-                      case "WARNING":
-                        return "bg-yellow-50";
-                      case "DEBUG":
-                        return "bg-purple-50";
-                      case "FILE":
-                        return "bg-gray-50";
-                    }
-                  };
-
-                  const getTextColor = () => {
-                    switch (log.type) {
-                      case "INFO":
-                        return "text-blue-600";
-                      case "ERROR":
-                        return "text-red-600";
-                      case "WARNING":
-                        return "text-yellow-600";
-                      case "DEBUG":
-                        return "text-purple-600";
-                      case "FILE":
-                        return "text-gray-600";
-                    }
-                  };
-
-                  return (
-                    <div
-                      key={index}
-                      className={`flex items-center gap-3 rounded-md p-3 ${getBackground()}`}
-                    >
-                      {getIcon()}
-                      <div className="flex items-center gap-2">
-                        <span className={`font-mono text-sm ${getTextColor()}`}>
-                          [{log.type}] {log.timestamp} -
-                        </span>
-                        <span className="text-sm">{log.message}</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
-          {/* Add Server Modal */}
-          {openServerModel && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-              <div className="bg-white p-6 rounded-lg shadow-lg w-96">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold">Add New Server</h3>
-                  <button
-                    onClick={() => setOpenServerModel(false)}
-                    className="bg-red-500 hover:text-gray-700 rounded-3xl"
-                  >
-                    <X className="text-white  h-4 w-4" />
-                  </button>
-                </div>
-                <div className="space-y-4">
-                  <div>
-                    <label
-                      htmlFor="server-name"
-                      className="block text-sm font-medium text-gray-700 mb-1"
-                    >
-                      Server Name:
-                    </label>
-                    <input
-                      type="text"
-                      id="server-name"
-                      placeholder="Enter Server Name"
-                      value={newServerName}
-                      onChange={(e) => setNewServerName(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label
-                      htmlFor="add-server"
-                      className="block text-sm font-medium text-gray-700 mb-1"
-                    >
-                      Server Path:
-                    </label>
-                    <div className="flex items-center">
-                      <input
-                        type="file"
-                        id="add-server"
-                        webkitdirectory=""
-                        directory=""
-                        multiple
-                        className="hidden"
-                        onChange={(e: ChangeEvent<HTMLInputElement>) => {
-                          const files = e.target.files;
-                          if (files && files.length > 0) {
-                            setNewServerPath(
-                              files[0].webkitRelativePath.split("/")[0]
-                            );
-                          }
-                        }}
-                      />
-                      <input
-                        type="text"
-                        value={newServerPath}
-                        readOnly
-                        className="flex-grow px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="No directory selected"
-                      />
-                      <label
-                        htmlFor="add-server"
-                        className="bg-blue-600 text-white px-3 py-2 rounded-r-md hover:bg-blue-700 cursor-pointer"
-                      >
-                        Browse
-                      </label>
-                    </div>
-                  </div>
-                  <button
-                    onClick={handleAddServer}
-                    className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                  >
-                    Add Server
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* Status Bar */}
-        <div className="border-t px-4 py-2 text-center">
-          <div className="flex flex-col items-center justify-center gap-2 text-sm text-muted-foreground sm:flex-row sm:justify-between">
-            <span>Last updated: {new Date().toLocaleString()}</span>
+        <div className="flex-1 flex flex-col">
+          <div className="border-b p-4 flex items-center gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Search logs..."
+                className="pl-8"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <Select defaultValue="last-24-hours">
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Select time range" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="last-24-hours">Last 24 hours</SelectItem>
+                <SelectItem value="last-7-days">Last 7 days</SelectItem>
+                <SelectItem value="last-30-days">Last 30 days</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select defaultValue="info">
+              <SelectTrigger className="w-[120px]">
+                <SelectValue placeholder="Select level" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="info">Info</SelectItem>
+                <SelectItem value="warning">Warning</SelectItem>
+                <SelectItem value="error">Error</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant="default" className="gap-2 bg-blue-600">
+              <Download className="h-4 w-4" />
+              Download Logs
+            </Button>
+            <Button variant="ghost" size="icon">
+              <RotateCcw className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon">
+              <Settings className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <div className="flex-1 p-4 overflow-auto">
+            {selectedServer ? (
+              <div className="space-y-2">
+                {filteredFiles.map((file, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-4 p-3 hover:bg-accent rounded-lg"
+                  >
+                    <File className="h-4 w-4 text-muted-foreground" />
+                    <div className="flex-1 font-mono text-sm">
+                      [LOG] {file.timestamp} - log: {file.name}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted-foreground">
+                Select a server to view files
+              </p>
+            )}
+          </div>
+
+          <div className="border-t p-2 text-sm text-muted-foreground flex items-center justify-between">
+            <div>Last updated: 12/23/2024, 5:09:53 PM</div>
             <div className="flex items-center gap-4">
               <span>Connected to {servers.length} servers</span>
               <span>•</span>
-              <span>Showing {logs.length} log entries</span>
+              <span>Showing {filteredFiles.length} log entries</span>
             </div>
           </div>
         </div>
       </div>
+
+      {openServerModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
+          <div className="bg-background p-6 rounded-lg shadow-lg w-96">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">Add New Server</h3>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setOpenServerModal(false)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label
+                  htmlFor="server-name"
+                  className="block text-sm font-medium mb-1"
+                >
+                  Server Name:
+                </label>
+                <Input
+                  type="text"
+                  id="server-name"
+                  placeholder="Enter Server Name"
+                  value={newServerName}
+                  onChange={(e) => setNewServerName(e.target.value)}
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="add-server"
+                  className="block text-sm font-medium mb-1"
+                >
+                  Server Path:
+                </label>
+                <div className="flex gap-2">
+                  <Input
+                    type="text"
+                    value={newServerPath}
+                    readOnly
+                    placeholder="No directory selected"
+                  />
+                  <input
+                    type="file"
+                    id="add-server"
+                    webkitdirectory=""
+                    directory=""
+                    multiple
+                    className="hidden"
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                      const files = e.target.files;
+                      if (files && files.length > 0) {
+                        setNewServerPath(
+                          files[0].webkitRelativePath.split("/")[0]
+                        );
+                        handleDirectorySelect(e);
+                      }
+                    }}
+                  />
+                  <Button
+                    variant="secondary"
+                    onClick={() =>
+                      document.getElementById("add-server")?.click()
+                    }
+                  >
+                    Browse
+                  </Button>
+                </div>
+              </div>
+              <Button
+                onClick={handleAddServer}
+                className="w-full bg-blue-600"
+                disabled={!newServerName || !newServerPath}
+              >
+                Add Server
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
