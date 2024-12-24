@@ -224,6 +224,7 @@ export default function ServerLogsViewer() {
                 variant="ghost"
                 size="icon"
                 onClick={() => setOpenServerModal(false)}
+                className="bg-red-500"
               >
                 <X className="h-4 w-4" />
               </Button>
