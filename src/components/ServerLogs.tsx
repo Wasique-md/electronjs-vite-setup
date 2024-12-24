@@ -1,6 +1,5 @@
 "use client";
-import React from "react";
-import { useState, ChangeEvent } from "react";
+import React, { useState, ChangeEvent } from "react";
 import {
   ChevronRight,
   Server,
@@ -39,7 +38,7 @@ export default function ServerLogsViewer() {
   const [newServerName, setNewServerName] = useState<string>("");
   const [newServerPath, setNewServerPath] = useState<string>("");
   const [selectedServer, setSelectedServer] = useState<ServerType | null>(null);
-  const [files, setFiles] = useState<FileEntry[]>([]);
+  const [files, setFiles] = useState<Record<string, FileEntry[]>>({});
   const [searchQuery, setSearchQuery] = useState<string>("");
 
   const handleOpenAddServerModal = () => {
@@ -63,56 +62,32 @@ export default function ServerLogsViewer() {
 
   const handleSelectServer = (server: ServerType) => {
     setSelectedServer(server);
-    const simulatedFiles = [
-      {
-        name: "config.json",
-        path: `${server.path}/config.json`,
-        timestamp: "2024-12-23T11:39:53.824Z",
-      },
-      {
-        name: "app.log",
-        path: `${server.path}/app.log`,
-        timestamp: "2024-12-23T11:39:53.824Z",
-      },
-      {
-        name: "data.db",
-        path: `${server.path}/data.db`,
-        timestamp: "2024-12-23T11:39:53.824Z",
-      },
-      {
-        name: "index.html",
-        path: `${server.path}/index.html`,
-        timestamp: "2024-12-23T11:39:53.824Z",
-      },
-      {
-        name: "styles.css",
-        path: `${server.path}/styles.css`,
-        timestamp: "2024-12-23T11:39:53.824Z",
-      },
-      {
-        name: "script.js",
-        path: `${server.path}/script.js`,
-        timestamp: "2024-12-23T11:39:53.824Z",
-      },
-    ];
-    setFiles(simulatedFiles);
   };
 
   const handleDirectorySelect = (e: ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files) {
-      const fileList: FileEntry[] = Array.from(files).map((file) => ({
+    const selectedFiles = e.target.files;
+    if (selectedFiles) {
+      const fileList: FileEntry[] = Array.from(selectedFiles).map((file) => ({
         name: file.name,
         path: file.webkitRelativePath,
         timestamp: new Date().toISOString(),
       }));
-      setFiles(fileList);
+      if (selectedFiles.length > 0) {
+        const serverPath = selectedFiles[0].webkitRelativePath.split("/")[0];
+        setNewServerPath(serverPath);
+        setFiles((prevFiles) => ({
+          ...prevFiles,
+          [serverPath]: fileList,
+        }));
+      }
     }
   };
 
-  const filteredFiles = files.filter((file) =>
-    file.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredFiles = selectedServer
+    ? (files[selectedServer.path] || []).filter((file) =>
+        file.name.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : [];
 
   return (
     <div className="flex h-screen w-full flex-col bg-background">
@@ -131,7 +106,7 @@ export default function ServerLogsViewer() {
                 variant="default"
                 size="sm"
                 onClick={handleOpenAddServerModal}
-                className="h-8 bg-blue-600 hover:to-blue-800"
+                className="h-8 bg-blue-600 hover:bg-blue-700"
               >
                 + Add Server
               </Button>
@@ -186,7 +161,10 @@ export default function ServerLogsViewer() {
                 <SelectItem value="error">Error</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="default" className="gap-2 bg-blue-600">
+            <Button
+              variant="default"
+              className="gap-2 bg-blue-600 hover:bg-blue-700"
+            >
               <Download className="h-4 w-4" />
               Download Logs
             </Button>
@@ -200,19 +178,25 @@ export default function ServerLogsViewer() {
 
           <div className="flex-1 p-4 overflow-auto">
             {selectedServer ? (
-              <div className="space-y-2">
-                {filteredFiles.map((file, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center gap-4 p-3 hover:bg-accent rounded-lg"
-                  >
-                    <File className="h-4 w-4 text-muted-foreground" />
-                    <div className="flex-1 font-mono text-sm">
-                      [LOG] {file.timestamp} - log: {file.name}
+              filteredFiles.length > 0 ? (
+                <div className="space-y-2">
+                  {filteredFiles.map((file, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center gap-4 p-3 hover:bg-accent rounded-lg"
+                    >
+                      <File className="h-4 w-4 text-muted-foreground" />
+                      <div className="flex-1 font-mono text-sm">
+                        [LOG] {file.timestamp} - log: {file.name}
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground">
+                  No files found for this server.
+                </p>
+              )
             ) : (
               <p className="text-muted-foreground">
                 Select a server to view files
@@ -221,7 +205,7 @@ export default function ServerLogsViewer() {
           </div>
 
           <div className="border-t p-2 text-sm text-muted-foreground flex items-center justify-between">
-            <div>Last updated: 12/23/2024, 5:09:53 PM</div>
+            <div>Last updated: {new Date().toLocaleString()}</div>
             <div className="flex items-center gap-4">
               <span>Connected to {servers.length} servers</span>
               <span>•</span>
@@ -281,15 +265,7 @@ export default function ServerLogsViewer() {
                     directory=""
                     multiple
                     className="hidden"
-                    onChange={(e: ChangeEvent<HTMLInputElement>) => {
-                      const files = e.target.files;
-                      if (files && files.length > 0) {
-                        setNewServerPath(
-                          files[0].webkitRelativePath.split("/")[0]
-                        );
-                        handleDirectorySelect(e);
-                      }
-                    }}
+                    onChange={handleDirectorySelect}
                   />
                   <Button
                     variant="secondary"
@@ -303,7 +279,7 @@ export default function ServerLogsViewer() {
               </div>
               <Button
                 onClick={handleAddServer}
-                className="w-full bg-blue-600"
+                className="w-full bg-blue-600 hover:bg-blue-700"
                 disabled={!newServerName || !newServerPath}
               >
                 Add Server
