@@ -1,4 +1,3 @@
-"use client";
 import React, { useState, ChangeEvent } from "react";
 import {
   ChevronRight,
@@ -19,6 +18,13 @@ import {
 } from "./ui/select";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "./ui/dialog";
 
 interface ServerType {
   name: string;
@@ -30,6 +36,8 @@ interface FileEntry {
   name: string;
   path: string;
   timestamp: string;
+  content: string | ArrayBuffer | null;
+  type: string;
 }
 
 export default function ServerLogsViewer() {
@@ -40,6 +48,7 @@ export default function ServerLogsViewer() {
   const [selectedServer, setSelectedServer] = useState<ServerType | null>(null);
   const [files, setFiles] = useState<Record<string, FileEntry[]>>({});
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [selectedFile, setSelectedFile] = useState<FileEntry | null>(null);
 
   const handleOpenAddServerModal = () => {
     setOpenServerModal(!openServerModal);
@@ -64,14 +73,21 @@ export default function ServerLogsViewer() {
     setSelectedServer(server);
   };
 
-  const handleDirectorySelect = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleDirectorySelect = async (e: ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = e.target.files;
     if (selectedFiles) {
-      const fileList: FileEntry[] = Array.from(selectedFiles).map((file) => ({
-        name: file.name,
-        path: file.webkitRelativePath,
-        timestamp: new Date().toISOString(),
-      }));
+      const fileList: FileEntry[] = await Promise.all(
+        Array.from(selectedFiles).map(async (file) => {
+          const content = await readFileContent(file);
+          return {
+            name: file.name,
+            path: file.webkitRelativePath,
+            timestamp: new Date().toISOString(),
+            content: content,
+            type: file.type || getFileTypeFromName(file.name),
+          };
+        })
+      );
       if (selectedFiles.length > 0) {
         const serverPath = selectedFiles[0].webkitRelativePath.split("/")[0];
         setNewServerPath(serverPath);
@@ -83,11 +99,77 @@ export default function ServerLogsViewer() {
     }
   };
 
+  const readFileContent = (
+    file: File
+  ): Promise<string | ArrayBuffer | null> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target) {
+          resolve(event.target.result);
+        } else {
+          reject(new Error("Failed to read file"));
+        }
+      };
+      reader.onerror = (error) => reject(error);
+
+      if (file.type.startsWith("image/")) {
+        reader.readAsDataURL(file);
+      } else {
+        reader.readAsText(file);
+      }
+    });
+  };
+
+  const getFileTypeFromName = (fileName: string): string => {
+    const extension = fileName.split(".").pop()?.toLowerCase();
+    switch (extension) {
+      case "js":
+        return "application/javascript";
+      case "py":
+        return "text/x-python";
+      case "html":
+        return "text/html";
+      case "css":
+        return "text/css";
+      default:
+        return "text/plain";
+    }
+  };
+
   const filteredFiles = selectedServer
     ? (files[selectedServer.path] || []).filter((file) =>
         file.name.toLowerCase().includes(searchQuery.toLowerCase())
       )
     : [];
+
+  const handleFileClick = (file: FileEntry) => {
+    setSelectedFile(file);
+  };
+
+  const renderFileContent = (file: FileEntry) => {
+    if (file.type.startsWith("image/")) {
+      return (
+        <div className="flex justify-center">
+          <img
+            src={file.content as string}
+            alt={file.name}
+            width={400}
+            height={300}
+            style={{ objectFit: "contain" }}
+          />
+        </div>
+      );
+    } else if (typeof file.content === "string") {
+      return (
+        <pre className="whitespace-pre-wrap text-sm bg-gray-100 p-4 rounded overflow-auto max-h-[60vh]">
+          {file.content}
+        </pre>
+      );
+    } else {
+      return <p>This file type cannot be displayed directly.</p>;
+    }
+  };
 
   return (
     <div className="flex h-screen w-full flex-col bg-background">
@@ -183,11 +265,12 @@ export default function ServerLogsViewer() {
                   {filteredFiles.map((file, index) => (
                     <div
                       key={index}
-                      className="flex items-center gap-4 p-3 hover:bg-accent rounded-lg"
+                      className="flex items-center gap-4 p-3 hover:bg-accent rounded-lg cursor-pointer"
+                      onClick={() => handleFileClick(file)}
                     >
                       <File className="h-4 w-4 text-muted-foreground" />
                       <div className="flex-1 font-mono text-sm">
-                        [LOG] {file.timestamp} - log: {file.name}
+                        [LOG] {file.timestamp} - {file.type}: {file.name}
                       </div>
                     </div>
                   ))}
@@ -289,6 +372,21 @@ export default function ServerLogsViewer() {
           </div>
         </div>
       )}
+
+      <Dialog open={!!selectedFile} onOpenChange={() => setSelectedFile(null)}>
+        <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>{selectedFile?.name}</DialogTitle>
+            <DialogDescription>
+              Path: {selectedFile?.path} | Type: {selectedFile?.type} |
+              Timestamp: {selectedFile?.timestamp}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-auto mt-4">
+            {selectedFile && renderFileContent(selectedFile)}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
