@@ -1,3 +1,4 @@
+"use client";
 import React, { useState, ChangeEvent } from "react";
 import {
   ChevronRight,
@@ -25,6 +26,14 @@ import {
   DialogTitle,
   DialogDescription,
 } from "./ui/dialog";
+
+type DirectoryInputProps = React.DetailedHTMLProps<
+  React.InputHTMLAttributes<HTMLInputElement>,
+  HTMLInputElement
+> & {
+  webkitdirectory?: string;
+  directory?: string;
+};
 
 interface ServerType {
   name: string;
@@ -350,6 +359,7 @@ export default function ServerLogsViewer() {
                     multiple
                     className="hidden"
                     onChange={handleDirectorySelect}
+                    {...({} as DirectoryInputProps)}
                   />
                   <Button
                     variant="secondary"
