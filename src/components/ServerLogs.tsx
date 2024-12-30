@@ -1,31 +1,17 @@
 "use client";
+import React, { useState, ChangeEvent } from "react";
 import { format } from "date-fns";
 import {
-  CalendarIcon,
   ChevronRight,
-  Download,
-  File,
-  RotateCcw,
-  Search,
   Server,
-  Settings,
+  File,
   X,
+  Search,
+  Settings,
+  RotateCcw,
+  Download,
+  CalendarIcon,
 } from "lucide-react";
-import React, { ChangeEvent, useState } from "react";
-import { cn } from "../lib/utils";
-import { Button } from "./ui/button";
-import { Calendar } from "./ui/calendar";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "./ui/dialog";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import {
   Select,
   SelectContent,
@@ -33,6 +19,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
+import { Checkbox } from "./ui/checkbox";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "./ui/dialog";
+import { Calendar } from "./ui/calendar";
+import { Label } from "./ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+import { cn } from "../lib/utils";
 
 type DirectoryInputProps = React.DetailedHTMLProps<
   React.InputHTMLAttributes<HTMLInputElement>,
@@ -65,6 +65,7 @@ export default function ServerLogsViewer() {
   const [files, setFiles] = useState<Record<string, FileEntry[]>>({});
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedFile, setSelectedFile] = useState<FileEntry | null>(null);
+  const [checkedFiles, setCheckedFiles] = useState<Set<string>>(new Set());
   const [fromDate, setFromDate] = useState<Date>();
   const [toDate, setToDate] = useState<Date>();
 
@@ -164,6 +165,19 @@ export default function ServerLogsViewer() {
   const handleFileClick = (file: FileEntry) => {
     setSelectedFile(file);
   };
+
+  // const handleCheckboxChange = (filePath: string, event: React.MouseEvent) => {
+  //   event.stopPropagation();
+  //   setCheckedFiles((prev) => {
+  //     const newChecked = new Set(prev);
+  //     if (newChecked.has(filePath)) {
+  //       newChecked.delete(filePath);
+  //     } else {
+  //       newChecked.add(filePath);
+  //     }
+  //     return newChecked;
+  //   });
+  // };
 
   const renderFileContent = (file: FileEntry) => {
     if (file.type.startsWith("image/")) {
@@ -345,9 +359,37 @@ export default function ServerLogsViewer() {
                       className="flex items-center gap-4 p-3 hover:bg-accent rounded-lg cursor-pointer"
                       onClick={() => handleFileClick(file)}
                     >
-                      <File className="h-4 w-4 text-muted-foreground" />
-                      <div className="flex-1 font-mono text-sm">
-                        [LOG] {file.timestamp} - {file.type}: {file.name}
+                      <div
+                        className="flex items-center justify-center"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Checkbox
+                          id={`file-${index}`}
+                          checked={checkedFiles.has(file.path)}
+                          onCheckedChange={(checked) => {
+                            setCheckedFiles((prev) => {
+                              const newChecked = new Set(prev);
+                              if (checked) {
+                                newChecked.add(file.path);
+                              } else {
+                                newChecked.delete(file.path);
+                              }
+                              return newChecked;
+                            });
+                          }}
+                          className={cn(
+                            "rounded-3xl h-4 w-4  border-blue-500",
+                            checkedFiles.has(file.path)
+                              ? "bg-blue-500 border-blue-500 text-blue-500 rounded-3xl"
+                              : "bg-background border-blue-500 rounded-3xl"
+                          )}
+                        />
+                      </div>
+                      <div className="flex items-center gap-4 flex-1">
+                        <File className="h-4 w-4 text-muted-foreground" />
+                        <div className="flex-1 font-mono text-sm">
+                          [LOG] {file.timestamp} - {file.type}: {file.name}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -375,67 +417,6 @@ export default function ServerLogsViewer() {
         </div>
       </div>
 
-      {/* <Dialog open={openServerModal} onOpenChange={setOpenServerModal}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Add New Server</DialogTitle>
-            <DialogDescription>
-              Enter the server details below to add a new server.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="server-name" className="text-right">
-                Server Name
-              </Label>
-              <Input
-                id="server-name"
-                value={newServerName}
-                onChange={(e) => setNewServerName(e.target.value)}
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="server-path" className="text-right">
-                Server Path
-              </Label>
-              <div className="col-span-3 flex gap-2">
-                <Input
-                  id="server-path"
-                  value={newServerPath}
-                  readOnly
-                  placeholder="No directory selected"
-                  className="flex-1"
-                />
-                <input
-                  type="file"
-                  id="add-server"
-                  webkitdirectory=""
-                  directory=""
-                  multiple
-                  className="hidden"
-                  onChange={handleDirectorySelect}
-                  {...({} as DirectoryInputProps)}
-                />
-                <Button
-                  variant="secondary"
-                  onClick={() => document.getElementById("add-server")?.click()}
-                >
-                  Browse
-                </Button>
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              onClick={handleAddServer}
-              disabled={!newServerName || !newServerPath}
-            >
-              Add Server
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog> */}
       {openServerModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
           <div className="bg-background p-6 rounded-lg shadow-lg w-96">
