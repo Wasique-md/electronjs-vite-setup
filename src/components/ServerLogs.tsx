@@ -1,15 +1,31 @@
 "use client";
-import React, { useState, ChangeEvent } from "react";
+import { format } from "date-fns";
 import {
+  CalendarIcon,
   ChevronRight,
-  Server,
-  File,
-  X,
-  Search,
-  Settings,
-  RotateCcw,
   Download,
+  File,
+  RotateCcw,
+  Search,
+  Server,
+  Settings,
+  X,
 } from "lucide-react";
+import React, { ChangeEvent, useState } from "react";
+import { cn } from "../lib/utils";
+import { Button } from "./ui/button";
+import { Calendar } from "./ui/calendar";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import {
   Select,
   SelectContent,
@@ -17,15 +33,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "./ui/dialog";
 
 type DirectoryInputProps = React.DetailedHTMLProps<
   React.InputHTMLAttributes<HTMLInputElement>,
@@ -58,6 +65,8 @@ export default function ServerLogsViewer() {
   const [files, setFiles] = useState<Record<string, FileEntry[]>>({});
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedFile, setSelectedFile] = useState<FileEntry | null>(null);
+  const [fromDate, setFromDate] = useState<Date>();
+  const [toDate, setToDate] = useState<Date>();
 
   const handleOpenAddServerModal = () => {
     setOpenServerModal(!openServerModal);
@@ -163,9 +172,7 @@ export default function ServerLogsViewer() {
           <img
             src={file.content as string}
             alt={file.name}
-            width={400}
-            height={300}
-            style={{ objectFit: "contain" }}
+            className="max-w-full max-h-[60vh] object-contain"
           />
         </div>
       );
@@ -221,8 +228,8 @@ export default function ServerLogsViewer() {
         </div>
 
         <div className="flex-1 flex flex-col">
-          <div className="border-b p-4 flex items-center gap-4">
-            <div className="relative flex-1">
+          <div className="border-b p-4 flex items-center gap-4 flex-wrap">
+            <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 type="text"
@@ -232,6 +239,67 @@ export default function ServerLogsViewer() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
+            <div className="flex items-center gap-2">
+              <Label>From:</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-[200px] justify-start text-left font-normal",
+                      !fromDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {fromDate ? (
+                      format(fromDate, "PPP")
+                    ) : (
+                      <span>Pick a date</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={fromDate}
+                    onSelect={setFromDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="flex items-center gap-2">
+              <Label>To:</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-[200px] justify-start text-left font-normal",
+                      !toDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {toDate ? format(toDate, "PPP") : <span>Pick a date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={toDate}
+                    onSelect={setToDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <Button
+              variant="default"
+              size="sm"
+              className="h-9 bg-blue-600 hover:bg-blue-700"
+            >
+              Evaluate
+            </Button>
             <Select defaultValue="last-24-hours">
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Select time range" />
@@ -307,6 +375,67 @@ export default function ServerLogsViewer() {
         </div>
       </div>
 
+      {/* <Dialog open={openServerModal} onOpenChange={setOpenServerModal}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Add New Server</DialogTitle>
+            <DialogDescription>
+              Enter the server details below to add a new server.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="server-name" className="text-right">
+                Server Name
+              </Label>
+              <Input
+                id="server-name"
+                value={newServerName}
+                onChange={(e) => setNewServerName(e.target.value)}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="server-path" className="text-right">
+                Server Path
+              </Label>
+              <div className="col-span-3 flex gap-2">
+                <Input
+                  id="server-path"
+                  value={newServerPath}
+                  readOnly
+                  placeholder="No directory selected"
+                  className="flex-1"
+                />
+                <input
+                  type="file"
+                  id="add-server"
+                  webkitdirectory=""
+                  directory=""
+                  multiple
+                  className="hidden"
+                  onChange={handleDirectorySelect}
+                  {...({} as DirectoryInputProps)}
+                />
+                <Button
+                  variant="secondary"
+                  onClick={() => document.getElementById("add-server")?.click()}
+                >
+                  Browse
+                </Button>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              onClick={handleAddServer}
+              disabled={!newServerName || !newServerPath}
+            >
+              Add Server
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog> */}
       {openServerModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
           <div className="bg-background p-6 rounded-lg shadow-lg w-96">
