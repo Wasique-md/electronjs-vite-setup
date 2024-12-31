@@ -33,6 +33,7 @@ import { Calendar } from "./ui/calendar";
 import { Label } from "./ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { cn } from "../lib/utils";
+import axios from "axios";
 
 type DirectoryInputProps = React.DetailedHTMLProps<
   React.InputHTMLAttributes<HTMLInputElement>,
@@ -201,6 +202,32 @@ export default function ServerLogsViewer() {
     }
   };
 
+  //api requests
+  const handlePostFiles = async () => {
+    const formData = new FormData();
+
+    // Append selected files to formData
+    checkedFiles.forEach((filePath) => {
+      const file = files[selectedServer?.path || ""]?.find(
+        (f) => f.path === filePath
+      );
+      if (file && file.content) {
+        // Create a new Blob with the file content and type
+        const blob = new Blob([file.content], { type: file.type });
+        formData.append("files", blob, file.name);
+      }
+    });
+
+    try {
+      const res = await axios.post("https://httpbin.org/post", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      console.log(res);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   return (
     <div className="flex h-screen w-full flex-col bg-background">
       <div className="border-b py-3 px-4">
@@ -308,6 +335,7 @@ export default function ServerLogsViewer() {
               </Popover>
             </div>
             <Button
+              onClick={handlePostFiles}
               variant="default"
               size="sm"
               className="h-9 bg-blue-600 hover:bg-blue-700"
