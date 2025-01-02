@@ -438,7 +438,6 @@ export default function ServerLogsViewer() {
                     <div
                       key={index}
                       className="flex items-center gap-4 p-3 hover:bg-accent rounded-lg cursor-pointer"
-                      onClick={() => handleFileClick(file)}
                     >
                       <div
                         className="flex items-center justify-center"
@@ -464,7 +463,10 @@ export default function ServerLogsViewer() {
                           className="border-blue-600 "
                         />
                       </div>
-                      <div className="flex items-center gap-4 flex-1">
+                      <div
+                        onClick={() => handleFileClick(file)}
+                        className="flex items-center gap-4 flex-1"
+                      >
                         <File className="h-4 w-4 text-muted-foreground" />
                         <div className="flex-1 font-mono text-sm">
                           [LOG] {file.timestamp} - {file.type}: {file.name}
@@ -505,7 +507,7 @@ export default function ServerLogsViewer() {
                 variant="ghost"
                 size="icon"
                 onClick={() => setOpenServerModal(false)}
-                className="bg-red-500"
+                className="bg-red-500 hover:bg-red-700 hover:border-red-700 text-white hover:text-white"
               >
                 <X className="h-4 w-4" />
               </Button>
