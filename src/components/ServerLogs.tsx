@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, ChangeEvent } from "react";
+import React, { useState, ChangeEvent, useEffect } from "react";
 import { format } from "date-fns";
 import {
   ChevronRight,
@@ -69,6 +69,13 @@ export default function ServerLogsViewer() {
   const [checkedFiles, setCheckedFiles] = useState<Set<string>>(new Set());
   const [fromDate, setFromDate] = useState<Date>();
   const [toDate, setToDate] = useState<Date>();
+  const [isDateFiltered, setIsDateFiltered] = useState(false);
+
+  useEffect(() => {
+    setFromDate(undefined);
+    setToDate(undefined);
+    setIsDateFiltered(false);
+  }, [selectedServer]);
 
   const handleOpenAddServerModal = () => {
     setOpenServerModal(!openServerModal);
@@ -158,61 +165,44 @@ export default function ServerLogsViewer() {
   };
 
   const filteredFiles = selectedServer
-    ? (files[selectedServer.path] || []).filter((file) =>
-        file.name.toLowerCase().includes(searchQuery.toLowerCase())
-      )
+    ? (files[selectedServer.path] || []).filter((file) => {
+        const fileDate = new Date(file.timestamp);
+        const matchesSearch = file.name
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase());
+        const matchesDateRange =
+          !isDateFiltered ||
+          ((!fromDate || fileDate >= fromDate) &&
+            (!toDate || fileDate <= toDate));
+
+        // Ensure the file date is exactly on the fromDate or toDate if they are set
+        const isExactMatch =
+          !fromDate ||
+          fileDate.toDateString() === fromDate.toDateString() ||
+          !toDate ||
+          fileDate.toDateString() === toDate.toDateString();
+
+        return matchesSearch && (matchesDateRange || isExactMatch);
+      })
     : [];
 
   const handleFileClick = (file: FileEntry) => {
     setSelectedFile(file);
   };
 
-  // const handleCheckboxChange = (filePath: string, event: React.MouseEvent) => {
-  //   event.stopPropagation();
-  //   setCheckedFiles((prev) => {
-  //     const newChecked = new Set(prev);
-  //     if (newChecked.has(filePath)) {
-  //       newChecked.delete(filePath);
-  //     } else {
-  //       newChecked.add(filePath);
-  //     }
-  //     return newChecked;
-  //   });
-  // };
-
-  const renderFileContent = (file: FileEntry) => {
-    if (file.type.startsWith("image/")) {
-      return (
-        <div className="flex justify-center">
-          <img
-            src={file.content as string}
-            alt={file.name}
-            className="max-w-full max-h-[60vh] object-contain"
-          />
-        </div>
-      );
-    } else if (typeof file.content === "string") {
-      return (
-        <pre className="whitespace-pre-wrap text-sm bg-gray-100 p-4 rounded overflow-auto max-h-[60vh]">
-          {file.content}
-        </pre>
-      );
+  const handleFilterDate = () => {
+    if (fromDate || toDate) {
+      setIsDateFiltered(true);
     } else {
-      return <p>This file type cannot be displayed directly.</p>;
+      setIsDateFiltered(false);
     }
   };
 
-  //api requests
   const handlePostFiles = async () => {
     const formData = new FormData();
 
-    // Append selected files to formData
-    checkedFiles.forEach((filePath) => {
-      const file = files[selectedServer?.path || ""]?.find(
-        (f) => f.path === filePath
-      );
-      if (file && file.content) {
-        // Create a new Blob with the file content and type
+    filteredFiles.forEach((file) => {
+      if (checkedFiles.has(file.path) && file.content) {
         const blob = new Blob([file.content], { type: file.type });
         formData.append("files", blob, file.name);
       }
@@ -303,7 +293,16 @@ export default function ServerLogsViewer() {
                   <Calendar
                     mode="single"
                     selected={fromDate}
-                    onSelect={setFromDate}
+                    onSelect={(date) => {
+                      setFromDate(date);
+                      setIsDateFiltered(false);
+                      if (toDate && date && date > toDate) {
+                        setToDate(date);
+                      }
+                    }}
+                    disabled={(date) =>
+                      date > new Date() || (toDate ? date > toDate : false)
+                    }
                     initialFocus
                   />
                 </PopoverContent>
@@ -328,12 +327,42 @@ export default function ServerLogsViewer() {
                   <Calendar
                     mode="single"
                     selected={toDate}
-                    onSelect={setToDate}
+                    onSelect={(date) => {
+                      setToDate(date);
+                      setIsDateFiltered(false);
+                      if (fromDate && date && date < fromDate) {
+                        setFromDate(date);
+                      }
+                    }}
+                    disabled={(date) =>
+                      date > new Date() || (fromDate ? date < fromDate : false)
+                    }
                     initialFocus
                   />
                 </PopoverContent>
               </Popover>
             </div>
+            <Button
+              onClick={handleFilterDate}
+              variant="default"
+              size="sm"
+              className="h-9 bg-green-600 hover:bg-green-700"
+              disabled={!fromDate && !toDate}
+            >
+              Filter Date
+            </Button>
+            <Button
+              onClick={() => {
+                setFromDate(undefined);
+                setToDate(undefined);
+                setIsDateFiltered(false);
+              }}
+              variant="outline"
+              size="sm"
+              className="h-9"
+            >
+              Clear Filter
+            </Button>
             <Button
               onClick={handlePostFiles}
               variant="default"
@@ -538,3 +567,16 @@ export default function ServerLogsViewer() {
     </div>
   );
 }
+
+const renderFileContent = (file: FileEntry) => {
+  if (typeof file.content === "string") {
+    return <pre>{file.content}</pre>;
+  } else if (file.content instanceof ArrayBuffer) {
+    // Handle ArrayBuffer content (e.g., for images)
+    const blob = new Blob([file.content], { type: file.type });
+    const url = URL.createObjectURL(blob);
+    return <img src={url} alt={file.name} />;
+  } else {
+    return <p>No content to display</p>;
+  }
+};
