@@ -425,9 +425,9 @@ export default function ServerLogsViewer() {
                 onClick={handleCheckAll}
                 variant="outline"
                 size="sm"
-                className="h-9"
+                className="h-9 bg-blue-600 text-white hover:bg-blue-700 hover:text-white rounded-xl"
               >
-                {allChecked ? "Uncheck All" : "Check All"}
+                {allChecked ? "Unselect All" : "Select All"}
               </Button>
               <span>{checkedFiles.size} file(s) selected</span>
             </div>
