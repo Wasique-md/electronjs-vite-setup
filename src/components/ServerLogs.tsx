@@ -461,7 +461,7 @@ export default function ServerLogsViewer() {
                               return newChecked;
                             });
                           }}
-                          className="border-primary"
+                          className="border-blue-600 "
                         />
                       </div>
                       <div className="flex items-center gap-4 flex-1">
