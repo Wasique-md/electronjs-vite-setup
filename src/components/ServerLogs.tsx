@@ -70,11 +70,14 @@ export default function ServerLogsViewer() {
   const [fromDate, setFromDate] = useState<Date>();
   const [toDate, setToDate] = useState<Date>();
   const [isDateFiltered, setIsDateFiltered] = useState(false);
+  const [allChecked, setAllChecked] = useState(false);
 
   useEffect(() => {
     setFromDate(undefined);
     setToDate(undefined);
     setIsDateFiltered(false);
+    setAllChecked(false);
+    setCheckedFiles(new Set());
   }, [selectedServer]);
 
   const handleOpenAddServerModal = () => {
@@ -215,6 +218,16 @@ export default function ServerLogsViewer() {
       console.log(res);
     } catch (error) {
       console.error(error);
+    }
+  };
+
+  const handleCheckAll = () => {
+    setAllChecked(!allChecked);
+    if (!allChecked) {
+      const allFilePaths = filteredFiles.map((file) => file.path);
+      setCheckedFiles(new Set(allFilePaths));
+    } else {
+      setCheckedFiles(new Set());
     }
   };
 
@@ -407,6 +420,17 @@ export default function ServerLogsViewer() {
           </div>
 
           <div className="flex-1 p-4 overflow-auto">
+            <div className="flex justify-between items-center mb-4">
+              <Button
+                onClick={handleCheckAll}
+                variant="outline"
+                size="sm"
+                className="h-9"
+              >
+                {allChecked ? "Uncheck All" : "Check All"}
+              </Button>
+              <span>{checkedFiles.size} file(s) selected</span>
+            </div>
             {selectedServer ? (
               filteredFiles.length > 0 ? (
                 <div className="space-y-2">
@@ -431,15 +455,13 @@ export default function ServerLogsViewer() {
                               } else {
                                 newChecked.delete(file.path);
                               }
+                              setAllChecked(
+                                newChecked.size === filteredFiles.length
+                              );
                               return newChecked;
                             });
                           }}
-                          className={cn(
-                            "rounded-3xl h-4 w-4  border-blue-500",
-                            checkedFiles.has(file.path)
-                              ? "bg-blue-500 border-blue-500 text-blue-500 rounded-3xl"
-                              : "bg-background border-blue-500 rounded-3xl"
-                          )}
+                          className="border-primary"
                         />
                       </div>
                       <div className="flex items-center gap-4 flex-1">
