@@ -1,4 +1,3 @@
-"use client";
 import React, { useState, ChangeEvent, useEffect } from "react";
 import { format } from "date-fns";
 import {
@@ -34,6 +33,7 @@ import { Label } from "./ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { cn } from "../lib/utils";
 import axios from "axios";
+import store from "../features/store";
 
 type DirectoryInputProps = React.DetailedHTMLProps<
   React.InputHTMLAttributes<HTMLInputElement>,
@@ -73,6 +73,23 @@ export default function ServerLogsViewer() {
   const [allChecked, setAllChecked] = useState(false);
 
   useEffect(() => {
+    const loadData = async () => {
+      const storedServers = (await store.get("servers")) || [];
+      const storedFiles = (await store.get("files")) || {};
+      const storedSelectedServerId = await store.get("selectedServerId");
+      setServers(storedServers);
+      setFiles(storedFiles);
+      if (storedSelectedServerId) {
+        const selectedServer = storedServers.find(
+          (server: ServerType) => server.id === storedSelectedServerId
+        );
+        setSelectedServer(selectedServer || null);
+      }
+    };
+    loadData();
+  }, []);
+
+  useEffect(() => {
     setFromDate(undefined);
     setToDate(undefined);
     setIsDateFiltered(false);
@@ -84,14 +101,18 @@ export default function ServerLogsViewer() {
     setOpenServerModal(!openServerModal);
   };
 
-  const handleAddServer = () => {
+  const handleAddServer = async () => {
     if (newServerName && newServerPath) {
       const newServer = {
         name: newServerName,
         id: Date.now().toString(),
         path: newServerPath,
       };
-      setServers([...servers, newServer]);
+      const updatedServers = [...servers, newServer];
+      setServers(updatedServers);
+      await store.set("servers", updatedServers);
+      await store.set("selectedServerId", newServer.id);
+      await store.set("files", files);
       setNewServerName("");
       setNewServerPath("");
       setOpenServerModal(false);
@@ -99,8 +120,9 @@ export default function ServerLogsViewer() {
     }
   };
 
-  const handleSelectServer = (server: ServerType) => {
+  const handleSelectServer = async (server: ServerType) => {
     setSelectedServer(server);
+    await store.set("selectedServerId", server.id);
   };
 
   const handleDirectorySelect = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -121,10 +143,12 @@ export default function ServerLogsViewer() {
       if (selectedFiles.length > 0) {
         const serverPath = selectedFiles[0].webkitRelativePath.split("/")[0];
         setNewServerPath(serverPath);
-        setFiles((prevFiles) => ({
-          ...prevFiles,
+        const updatedFiles = {
+          ...files,
           [serverPath]: fileList,
-        }));
+        };
+        setFiles(updatedFiles);
+        await store.set("files", updatedFiles);
       }
     }
   };
@@ -178,7 +202,6 @@ export default function ServerLogsViewer() {
           ((!fromDate || fileDate >= fromDate) &&
             (!toDate || fileDate <= toDate));
 
-        // Ensure the file date is exactly on the fromDate or toDate if they are set
         const isExactMatch =
           !fromDate ||
           fileDate.toDateString() === fromDate.toDateString() ||
@@ -596,7 +619,6 @@ const renderFileContent = (file: FileEntry) => {
   if (typeof file.content === "string") {
     return <pre>{file.content}</pre>;
   } else if (file.content instanceof ArrayBuffer) {
-    // Handle ArrayBuffer content (e.g., for images)
     const blob = new Blob([file.content], { type: file.type });
     const url = URL.createObjectURL(blob);
     return <img src={url} alt={file.name} />;
