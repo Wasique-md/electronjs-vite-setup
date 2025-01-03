@@ -73,10 +73,10 @@ export default function ServerLogsViewer() {
   const [allChecked, setAllChecked] = useState(false);
 
   useEffect(() => {
-    const loadData = async () => {
-      const storedServers = (await store.get("servers")) || [];
-      const storedFiles = (await store.get("files")) || {};
-      const storedSelectedServerId = await store.get("selectedServerId");
+    const loadData = () => {
+      const storedServers = store.get("servers") || [];
+      const storedFiles = store.get("files") || {};
+      const storedSelectedServerId = store.get("selectedServerId");
       setServers(storedServers);
       setFiles(storedFiles);
       if (storedSelectedServerId) {
@@ -101,7 +101,7 @@ export default function ServerLogsViewer() {
     setOpenServerModal(!openServerModal);
   };
 
-  const handleAddServer = async () => {
+  const handleAddServer = () => {
     if (newServerName && newServerPath) {
       const newServer = {
         name: newServerName,
@@ -110,9 +110,9 @@ export default function ServerLogsViewer() {
       };
       const updatedServers = [...servers, newServer];
       setServers(updatedServers);
-      await store.set("servers", updatedServers);
-      await store.set("selectedServerId", newServer.id);
-      await store.set("files", files);
+      store.set("servers", updatedServers);
+      store.set("selectedServerId", newServer.id);
+      store.set("files", files);
       setNewServerName("");
       setNewServerPath("");
       setOpenServerModal(false);
@@ -120,26 +120,21 @@ export default function ServerLogsViewer() {
     }
   };
 
-  const handleSelectServer = async (server: ServerType) => {
+  const handleSelectServer = (server: ServerType) => {
     setSelectedServer(server);
-    await store.set("selectedServerId", server.id);
+    store.set("selectedServerId", server.id);
   };
 
-  const handleDirectorySelect = async (e: ChangeEvent<HTMLInputElement>) => {
+  const handleDirectorySelect = (e: ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = e.target.files;
     if (selectedFiles) {
-      const fileList: FileEntry[] = await Promise.all(
-        Array.from(selectedFiles).map(async (file) => {
-          const content = await readFileContent(file);
-          return {
-            name: file.name,
-            path: file.webkitRelativePath,
-            timestamp: new Date().toISOString(),
-            content: content,
-            type: file.type || getFileTypeFromName(file.name),
-          };
-        })
-      );
+      const fileList: FileEntry[] = Array.from(selectedFiles).map((file) => ({
+        name: file.name,
+        path: file.webkitRelativePath,
+        timestamp: new Date().toISOString(),
+        content: null,
+        type: file.type || getFileTypeFromName(file.name),
+      }));
       if (selectedFiles.length > 0) {
         const serverPath = selectedFiles[0].webkitRelativePath.split("/")[0];
         setNewServerPath(serverPath);
@@ -148,31 +143,9 @@ export default function ServerLogsViewer() {
           [serverPath]: fileList,
         };
         setFiles(updatedFiles);
-        await store.set("files", updatedFiles);
+        store.set("files", updatedFiles);
       }
     }
-  };
-
-  const readFileContent = (
-    file: File
-  ): Promise<string | ArrayBuffer | null> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target) {
-          resolve(event.target.result);
-        } else {
-          reject(new Error("Failed to read file"));
-        }
-      };
-      reader.onerror = (error) => reject(error);
-
-      if (file.type.startsWith("image/")) {
-        reader.readAsDataURL(file);
-      } else {
-        reader.readAsText(file);
-      }
-    });
   };
 
   const getFileTypeFromName = (fileName: string): string => {
