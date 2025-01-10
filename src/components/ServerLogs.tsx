@@ -39,6 +39,7 @@ import axios from "axios";
 import toast from "react-hot-toast";
 import { FileEntry, ServerType } from "../types/types";
 import store from "../features/store";
+import { serverLogsUrl } from "../constants";
 
 type DirectoryInputProps = React.DetailedHTMLProps<
   React.InputHTMLAttributes<HTMLInputElement>,
@@ -231,13 +232,9 @@ export default function ServerLogsViewer() {
     const toastId = toast.loading(`Evaluating ${file.name}...`);
 
     try {
-      const res = await axios.post(
-        "https://ufbdku1y3j.execute-api.ap-south-1.amazonaws.com/dev/analyze-logs",
-        formData,
-        {
-          headers: { "Content-Type": "multipart/form-data" },
-        }
-      );
+      const res = await axios.post(`${serverLogsUrl}`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
       console.log(res);
 
       if (res.data && res.data.analysis_s3_link && res.data.solution_s3_link) {
