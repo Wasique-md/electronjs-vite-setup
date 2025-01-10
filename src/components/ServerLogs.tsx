@@ -12,6 +12,7 @@ import {
   RotateCcw,
   Download,
   CalendarIcon,
+  Loader2,
 } from "lucide-react";
 import {
   Select,
@@ -598,19 +599,22 @@ export default function ServerLogsViewer() {
                       >
                         Evaluate
                       </Button>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-2">
                         {file.analysisLink && (
                           <Button
                             variant="default"
                             size="sm"
-                            className="h-8 bg-purple-500 hover:bg-purple-700"
+                            className="h-8 bg-purple-500 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
                             onClick={() =>
                               window.open(file.analysisLink, "_blank")
                             }
                             disabled={analysisInProgress[file.path]}
                           >
                             {analysisInProgress[file.path] ? (
-                              <span className="loading loading-spinner loading-xs"></span>
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Analyzing
+                              </>
                             ) : (
                               "Analysis"
                             )}
@@ -620,14 +624,17 @@ export default function ServerLogsViewer() {
                           <Button
                             variant="default"
                             size="sm"
-                            className="h-8 bg-green-500 hover:bg-green-700"
+                            className="h-8 bg-green-500 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
                             onClick={() =>
                               window.open(file.solutionLink, "_blank")
                             }
                             disabled={solutionInProgress[file.path]}
                           >
                             {solutionInProgress[file.path] ? (
-                              <span className="loading loading-spinner loading-xs"></span>
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Solving
+                              </>
                             ) : (
                               "Solution"
                             )}
