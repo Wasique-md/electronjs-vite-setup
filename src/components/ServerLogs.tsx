@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, ChangeEvent, useEffect } from "react";
 import { format } from "date-fns";
 import {
@@ -33,7 +35,8 @@ import { Label } from "./ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { cn } from "../lib/utils";
 import axios from "axios";
-import store from "../features/store";
+import store, { FileEntry, ServerType } from "../features/store";
+import toast from "react-hot-toast";
 
 type DirectoryInputProps = React.DetailedHTMLProps<
   React.InputHTMLAttributes<HTMLInputElement>,
@@ -42,20 +45,6 @@ type DirectoryInputProps = React.DetailedHTMLProps<
   webkitdirectory?: string;
   directory?: string;
 };
-
-interface ServerType {
-  name: string;
-  id: string;
-  path: string;
-}
-
-interface FileEntry {
-  name: string;
-  path: string;
-  timestamp: string;
-  content: string | ArrayBuffer | null;
-  type: string;
-}
 
 export default function ServerLogsViewer() {
   const [servers, setServers] = useState<ServerType[]>([]);
@@ -125,16 +114,22 @@ export default function ServerLogsViewer() {
     store.set("selectedServerId", server.id);
   };
 
-  const handleDirectorySelect = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleDirectorySelect = async (e: ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = e.target.files;
     if (selectedFiles) {
-      const fileList: FileEntry[] = Array.from(selectedFiles).map((file) => ({
-        name: file.name,
-        path: file.webkitRelativePath,
-        timestamp: new Date().toISOString(),
-        content: null,
-        type: file.type || getFileTypeFromName(file.name),
-      }));
+      const fileList: FileEntry[] = await Promise.all(
+        Array.from(selectedFiles).map(async (file) => {
+          const content = await readFileContent(file);
+          return {
+            name: file.name,
+            path: file.webkitRelativePath,
+            actualPath: file.path,
+            timestamp: new Date().toISOString(),
+            content: content,
+            type: file.type || getFileTypeFromName(file.name),
+          };
+        })
+      );
       if (selectedFiles.length > 0) {
         const serverPath = selectedFiles[0].webkitRelativePath.split("/")[0];
         setNewServerPath(serverPath);
@@ -146,6 +141,28 @@ export default function ServerLogsViewer() {
         store.set("files", updatedFiles);
       }
     }
+  };
+
+  const readFileContent = (
+    file: File
+  ): Promise<string | ArrayBuffer | null> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target) {
+          resolve(event.target.result);
+        } else {
+          reject(new Error("Failed to read file"));
+        }
+      };
+      reader.onerror = (error) => reject(error);
+
+      if (file.type.startsWith("image/")) {
+        reader.readAsDataURL(file);
+      } else {
+        reader.readAsText(file);
+      }
+    });
   };
 
   const getFileTypeFromName = (fileName: string): string => {
@@ -197,20 +214,66 @@ export default function ServerLogsViewer() {
     }
   };
 
+  const handlePostFile = async (file: FileEntry) => {
+    const formData = new FormData();
+    if (file.content) {
+      const blob = new Blob([file.content], { type: file.type });
+      formData.append("file", blob, file.name);
+    }
+    const toastId = toast.loading(`Evaluating ${file.name}...`);
+
+    try {
+      const res = await axios.post(
+        "https://ufbdku1y3j.execute-api.ap-south-1.amazonaws.com/dev/analyze-logs",
+        formData,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        }
+      );
+      console.log(res);
+
+      if (res.data && res.data.analysis_s3_link && res.data.summary_s3_link) {
+        // Update the file object with the new links
+        const updatedFiles = { ...files };
+        const fileIndex = updatedFiles[selectedServer!.path].findIndex(
+          (f) => f.path === file.path
+        );
+        if (fileIndex !== -1) {
+          updatedFiles[selectedServer!.path][fileIndex] = {
+            ...file,
+            analysisLink: res.data.analysis_s3_link,
+            summaryLink: res.data.summary_s3_link,
+          };
+          setFiles(updatedFiles);
+          store.set("files", updatedFiles);
+          toast.success(`${file.name} evaluated successfully`, { id: toastId });
+        }
+      }
+    } catch (error) {
+      toast.error("Failed to evaluate file");
+      toast.error(`Error evaluating ${file.name}`, { id: toastId });
+      console.error(error);
+    }
+  };
+
   const handlePostFiles = async () => {
     const formData = new FormData();
 
     filteredFiles.forEach((file) => {
       if (checkedFiles.has(file.path) && file.content) {
         const blob = new Blob([file.content], { type: file.type });
-        formData.append("files", blob, file.name);
+        formData.append("files", blob, file.actualPath);
       }
     });
-
+    console.log(formData);
     try {
-      const res = await axios.post("https://httpbin.org/post", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const res = await axios.post(
+        "https://ufbdku1y3j.execute-api.ap-south-1.amazonaws.com/devs",
+        formData,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        }
+      );
       console.log(res);
     } catch (error) {
       console.error(error);
@@ -230,10 +293,14 @@ export default function ServerLogsViewer() {
   return (
     <div className="flex h-screen w-full flex-col bg-background">
       <div className="border-b py-3 px-4">
-        <h1 className="text-2xl font-semibold text-center">
-          Server Log Viewer
+        <h1 className="text-3xl font-bold text-center text-blue-500">
+          RCA-Tool
         </h1>
       </div>
+      <br />
+      <h2 className="text-2xl font-bold text-center text-blue-400">
+        Server Log Viewer
+      </h2>
 
       <div className="flex-1 flex">
         <div className="w-64 border-r flex flex-col">
@@ -378,7 +445,7 @@ export default function ServerLogsViewer() {
               size="sm"
               className="h-9 bg-blue-600 hover:bg-blue-700"
             >
-              Evaluate
+              Mass Evaluate
             </Button>
             <Select defaultValue="last-24-hours">
               <SelectTrigger className="w-[180px]">
@@ -467,6 +534,41 @@ export default function ServerLogsViewer() {
                         <div className="flex-1 font-mono text-sm">
                           [LOG] {file.timestamp} - {file.type}: {file.name}
                         </div>
+                      </div>
+
+                      <Button
+                        onClick={() => handlePostFile(file)}
+                        variant="default"
+                        size="sm"
+                        className="h-8  bg-blue-500 hover:bg-blue-700"
+                      >
+                        Evaluate
+                      </Button>
+                      <div className="flex items-center gap-1">
+                        {file.analysisLink && (
+                          <Button
+                            variant="default"
+                            size="sm"
+                            className="h-8 bg-purple-500 hover:bg-purple-700"
+                            onClick={() =>
+                              window.open(file.analysisLink, "_blank")
+                            }
+                          >
+                            Analysis
+                          </Button>
+                        )}
+                        {file.summaryLink && (
+                          <Button
+                            variant="default"
+                            size="sm"
+                            className="h-8 bg-green-500 hover:bg-green-700"
+                            onClick={() =>
+                              window.open(file.summaryLink, "_blank")
+                            }
+                          >
+                            Summary
+                          </Button>
+                        )}
                       </div>
                     </div>
                   ))}

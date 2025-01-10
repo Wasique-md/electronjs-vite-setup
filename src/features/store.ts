@@ -1,23 +1,23 @@
-interface ServerType {
+export interface ServerType {
   name: string;
   id: string;
   path: string;
 }
 
-interface FileEntry {
+export interface FileEntry {
   name: string;
   path: string;
+  actualPath: string; // Add this line
   timestamp: string;
   content: string | ArrayBuffer | null;
   type: string;
 }
 
-interface StoreSchema {
+export interface StoreSchema {
   servers: ServerType[];
   files: Record<string, FileEntry[]>;
   selectedServerId: string | null;
 }
-
 const store = {
   get: <K extends keyof StoreSchema>(key: K): StoreSchema[K] => {
     const item = localStorage.getItem(key);
