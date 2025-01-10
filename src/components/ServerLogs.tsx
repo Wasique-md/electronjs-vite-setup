@@ -35,8 +35,9 @@ import { Label } from "./ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { cn } from "../lib/utils";
 import axios from "axios";
-import store, { FileEntry, ServerType } from "../features/store";
 import toast from "react-hot-toast";
+import { FileEntry, ServerType } from "../types/types";
+import store from "../features/store";
 
 type DirectoryInputProps = React.DetailedHTMLProps<
   React.InputHTMLAttributes<HTMLInputElement>,
@@ -60,6 +61,12 @@ export default function ServerLogsViewer() {
   const [toDate, setToDate] = useState<Date>();
   const [isDateFiltered, setIsDateFiltered] = useState(false);
   const [allChecked, setAllChecked] = useState(false);
+  const [analysisInProgress, setAnalysisInProgress] = useState<
+    Record<string, boolean>
+  >({});
+  const [solutionInProgress, setSolutionInProgress] = useState<
+    Record<string, boolean>
+  >({});
 
   useEffect(() => {
     const loadData = () => {
@@ -232,7 +239,7 @@ export default function ServerLogsViewer() {
       );
       console.log(res);
 
-      if (res.data && res.data.analysis_s3_link && res.data.summary_s3_link) {
+      if (res.data && res.data.analysis_s3_link && res.data.solution_s3_link) {
         // Update the file object with the new links
         const updatedFiles = { ...files };
         const fileIndex = updatedFiles[selectedServer!.path].findIndex(
@@ -242,11 +249,18 @@ export default function ServerLogsViewer() {
           updatedFiles[selectedServer!.path][fileIndex] = {
             ...file,
             analysisLink: res.data.analysis_s3_link,
-            summaryLink: res.data.summary_s3_link,
+            solutionLink: res.data.solution_s3_link,
           };
           setFiles(updatedFiles);
           store.set("files", updatedFiles);
           toast.success(`${file.name} evaluated successfully`, { id: toastId });
+
+          // Start checking the status of analysis and solution
+          checkStatus(
+            file.path,
+            res.data.analysis_s3_link,
+            res.data.solution_s3_link
+          );
         }
       }
     } catch (error) {
@@ -288,6 +302,46 @@ export default function ServerLogsViewer() {
     } else {
       setCheckedFiles(new Set());
     }
+  };
+
+  const checkStatus = async (
+    filePath: string,
+    analysisLink: string,
+    solutionLink: string
+  ) => {
+    setAnalysisInProgress((prev) => ({ ...prev, [filePath]: true }));
+    setSolutionInProgress((prev) => ({ ...prev, [filePath]: true }));
+
+    const checkAnalysis = async () => {
+      try {
+        const res = await axios.get(analysisLink);
+        if (res.data.status !== "In Progress") {
+          setAnalysisInProgress((prev) => ({ ...prev, [filePath]: false }));
+        } else {
+          setTimeout(checkAnalysis, 5000); // Check again after 5 seconds
+        }
+      } catch (error) {
+        console.error("Error checking analysis status:", error);
+        setAnalysisInProgress((prev) => ({ ...prev, [filePath]: false }));
+      }
+    };
+
+    const checkSolution = async () => {
+      try {
+        const res = await axios.get(solutionLink);
+        if (res.data.status !== "In Progress") {
+          setSolutionInProgress((prev) => ({ ...prev, [filePath]: false }));
+        } else {
+          setTimeout(checkSolution, 5000); // Check again after 5 seconds
+        }
+      } catch (error) {
+        console.error("Error checking solution status:", error);
+        setSolutionInProgress((prev) => ({ ...prev, [filePath]: false }));
+      }
+    };
+
+    checkAnalysis();
+    checkSolution();
   };
 
   return (
@@ -553,20 +607,30 @@ export default function ServerLogsViewer() {
                             onClick={() =>
                               window.open(file.analysisLink, "_blank")
                             }
+                            disabled={analysisInProgress[file.path]}
                           >
-                            Analysis
+                            {analysisInProgress[file.path] ? (
+                              <span className="loading loading-spinner loading-xs"></span>
+                            ) : (
+                              "Analysis"
+                            )}
                           </Button>
                         )}
-                        {file.summaryLink && (
+                        {file.solutionLink && (
                           <Button
                             variant="default"
                             size="sm"
                             className="h-8 bg-green-500 hover:bg-green-700"
                             onClick={() =>
-                              window.open(file.summaryLink, "_blank")
+                              window.open(file.solutionLink, "_blank")
                             }
+                            disabled={solutionInProgress[file.path]}
                           >
-                            Summary
+                            {solutionInProgress[file.path] ? (
+                              <span className="loading loading-spinner loading-xs"></span>
+                            ) : (
+                              "Solution"
+                            )}
                           </Button>
                         )}
                       </div>

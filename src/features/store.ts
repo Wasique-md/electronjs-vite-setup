@@ -1,17 +1,4 @@
-export interface ServerType {
-  name: string;
-  id: string;
-  path: string;
-}
-
-export interface FileEntry {
-  name: string;
-  path: string;
-  actualPath: string; // Add this line
-  timestamp: string;
-  content: string | ArrayBuffer | null;
-  type: string;
-}
+import { FileEntry, ServerType } from "../types/types";
 
 export interface StoreSchema {
   servers: ServerType[];
