@@ -372,8 +372,10 @@ export default function ServerLogsViewer() {
               {servers.map((server) => (
                 <button
                   key={server.id}
-                  className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 hover:bg-accent ${
-                    selectedServer?.id === server.id ? "bg-accent" : ""
+                  className={`border-none flex w-full items-center gap-2 rounded-md px-2 py-1.5 hover:bg-accent ${
+                    selectedServer?.id === server.id
+                      ? "bg-blue-100 border-none text-blue-600 font-semibold hover:bg-blue-200 hover:text-blue-700"
+                      : ""
                   }`}
                   onClick={() => handleSelectServer(server)}
                 >
